@@ -286,6 +286,46 @@
       color: var(--muted);
     }
 
+    .link-button {
+      border: none;
+      background: none;
+      color: var(--accent);
+      font-weight: 600;
+      cursor: pointer;
+      padding: 6px 0;
+      text-align: left;
+      text-decoration: underline;
+    }
+
+    .expense-list {
+      max-height: 240px;
+      overflow-y: auto;
+      margin: 10px 0 16px;
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 12px;
+      background: rgba(255,255,255,.03);
+    }
+
+    .expense-list table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .expense-list th,
+    .expense-list td {
+      padding: 10px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+
+    .expense-list th { color: var(--muted); font-size: .85rem; }
+
+    .expense-empty {
+      padding: 12px;
+      text-align: center;
+      color: var(--muted);
+    }
+
     .modal-overlay {
       position: fixed;
       inset: 0;
@@ -377,6 +417,7 @@
     </div>
     <div class="progress"><div class="bar" id="progressBar"></div></div>
     <div class="insight" id="insight"></div>
+    <button class="link-button" id="expenseDetailsBtn" type="button">View this week's expenses</button>
     <button class="secondary" onclick="closeWeek()">End Week</button>
   </div>
 
@@ -399,6 +440,14 @@
     </div>
   </div>
 
+  <div class="modal-overlay hidden" id="expensesModal" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="expensesTitle">
+      <h2 id="expensesTitle">This week's expenses</h2>
+      <div id="expenseList" class="expense-list"></div>
+      <button id="expensesClose">Close</button>
+    </div>
+  </div>
+
 </div><script>
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').then(() => {
@@ -418,11 +467,14 @@
     carry: 0,
     weekStart: Date.now(),
     history: [],
+    expenses: [],
     warn80: false,
     warnNegative: false,
     warned80: false,
     warnedNegative: false
   };
+
+  if (!data.expenses) data.expenses = [];
 
   warn80.checked = data.warn80;
   warnNegative.checked = data.warnNegative;
@@ -433,6 +485,10 @@
   const alertModal = document.getElementById('alertModal');
   const modalMessage = document.getElementById('modalMessage');
   const modalClose = document.getElementById('modalClose');
+  const expensesModal = document.getElementById('expensesModal');
+  const expenseList = document.getElementById('expenseList');
+  const expensesClose = document.getElementById('expensesClose');
+  const expenseDetailsBtn = document.getElementById('expenseDetailsBtn');
 
   function showModal(message) {
     modalMessage.textContent = message;
@@ -456,7 +512,38 @@
       modalClose.focus();
     }
   });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !alertModal.classList.contains('hidden')) hideModal(); });
+
+  function closeExpensesModal() {
+    expensesModal.classList.add('hidden');
+    expensesModal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('modal-open');
+  }
+
+  function openExpensesModal() {
+    renderExpensesList();
+    expensesModal.classList.remove('hidden');
+    expensesModal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('modal-open');
+    expensesClose.focus({ preventScroll: true });
+  }
+
+  expensesClose.onclick = closeExpensesModal;
+  expenseDetailsBtn.onclick = openExpensesModal;
+
+  expensesModal.addEventListener('click', (e) => { if (e.target === expensesModal) closeExpensesModal(); });
+  expensesModal.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      expensesClose.focus();
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      if (!alertModal.classList.contains('hidden')) hideModal();
+      if (!expensesModal.classList.contains('hidden')) closeExpensesModal();
+    }
+  });
 
   let installPrompt;
   window.addEventListener('beforeinstallprompt', (e) => {
@@ -500,6 +587,7 @@
     data.spent = 0;
     data.carry = 0;
     data.weekStart = Date.now();
+    data.expenses = [];
     data.warned80 = false;
     data.warnedNegative = false;
     save();
@@ -515,6 +603,7 @@
     const val = Number(expenseInput.value);
     if (!val) return;
     data.spent += val;
+    data.expenses.unshift({ amount: val, timestamp: Date.now() });
     expenseInput.value = '';
 
     if (navigator.vibrate) navigator.vibrate(15);
@@ -541,10 +630,36 @@
     data.spent = 0;
     data.budget = 0;
     data.weekStart = Date.now();
+    data.expenses = [];
     data.warned80 = false;
     data.warnedNegative = false;
     save();
     render();
+  }
+
+  function currentWeekExpenses() {
+    const end = data.weekStart + MS_WEEK;
+    return data.expenses.filter(e => e.timestamp >= data.weekStart && e.timestamp < end);
+  }
+
+  function renderExpensesList() {
+    const expenses = currentWeekExpenses();
+    if (!expenses.length) {
+      expenseList.innerHTML = '<div class="expense-empty">No expenses logged this week yet.</div>';
+      return;
+    }
+
+    const rows = expenses.map(e => {
+      const date = new Date(e.timestamp).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+      return `<tr><td>${date}</td><td style="text-align:right;">$${e.amount.toFixed(2)}</td></tr>`;
+    }).join('');
+
+    expenseList.innerHTML = `
+      <table>
+        <thead><tr><th>Date</th><th style="text-align:right;">Amount</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
   }
 
   function render() {
@@ -568,6 +683,9 @@
     const status = remaining >= 0 ? 'Margin intact' : 'Recovery week';
     const paceStatus = avg <= pace ? 'On pace' : 'Spending fast';
     insight.textContent = `Avg $${avg.toFixed(0)} / day • ${status} • ${paceStatus}`;
+
+    const expenseCount = currentWeekExpenses().length;
+    expenseDetailsBtn.textContent = expenseCount ? `View this week's expenses (${expenseCount})` : 'View this week\'s expenses';
 
     budgetCard.classList.toggle('hidden', data.budget > 0);
 
