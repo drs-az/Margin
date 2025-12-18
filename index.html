@@ -265,6 +265,16 @@
 
     .hidden { display: none; }
 
+    .modal-overlay.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    body.modal-open {
+      overflow: hidden;
+    }
+
     .history-empty {
       text-align: center;
       padding: 12px;
@@ -376,7 +386,7 @@
     <div class="history-empty" id="historyEmpty" style="display:none;">No weeks closed yet. End a week to start your streak.</div>
   </div>
 
-  <div class="modal-overlay hidden" id="alertModal">
+  <div class="modal-overlay hidden" id="alertModal" aria-hidden="true">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
       <h2 id="modalTitle">Heads up</h2>
       <p id="modalMessage"></p>
@@ -422,15 +432,25 @@
   function showModal(message) {
     modalMessage.textContent = message;
     alertModal.classList.remove('hidden');
-    modalClose.focus();
+    alertModal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('modal-open');
+    modalClose.focus({ preventScroll: true });
   }
 
   function hideModal() {
     alertModal.classList.add('hidden');
+    alertModal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('modal-open');
   }
 
   modalClose.onclick = hideModal;
   alertModal.addEventListener('click', (e) => { if (e.target === alertModal) hideModal(); });
+  alertModal.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      modalClose.focus();
+    }
+  });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !alertModal.classList.contains('hidden')) hideModal(); });
 
   let installPrompt;
