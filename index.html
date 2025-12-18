@@ -1,0 +1,289 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Margin</title>  <!-- PWA -->  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#020617" />  <style>
+    :root {
+      --bg: #020617;
+      --card: #0f172a;
+      --accent: #38bdf8;
+      --positive: #22c55e;
+      --negative: #ef4444;
+      --muted: #94a3b8;
+      --text: #e5e7eb;
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: radial-gradient(circle at top, #020617, #000);
+      color: var(--text);
+    }
+
+    .container {
+      max-width: 460px;
+      margin: auto;
+      padding: 16px;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 4px;
+      letter-spacing: .4px;
+    }
+
+    .subtitle {
+      font-size: .85rem;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 18px;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.45);
+    }
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 6px 0;
+    }
+
+    input[type="number"] {
+      width: 100%;
+      padding: 12px;
+      border-radius: 12px;
+      border: none;
+      background: #020617;
+      color: var(--text);
+      margin-top: 6px;
+      font-size: 1rem;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 10px;
+      background: linear-gradient(90deg, var(--accent), #60a5fa);
+      color: #020617;
+      font-weight: 700;
+      border: none;
+      border-radius: 14px;
+      font-size: 1rem;
+    }
+
+    .secondary {
+      background: #020617;
+      color: var(--muted);
+      border: 1px solid #1e293b;
+    }
+
+    .progress {
+      height: 12px;
+      background: #020617;
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 10px;
+    }
+
+    .bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent), #60a5fa);
+      transition: width .4s ease, background .4s ease;
+    }
+
+    .bar.over {
+      background: linear-gradient(90deg, #fb7185, var(--negative));
+    }
+
+    .positive { color: var(--positive); }
+    .negative { color: var(--negative); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .9rem;
+    }
+
+    th, td {
+      padding: 8px 4px;
+      text-align: right;
+      border-bottom: 1px solid #1e293b;
+    }
+
+    th { color: var(--muted); }
+
+    .insight {
+      margin-top: 8px;
+      font-size: .85rem;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .toggle {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: .85rem;
+      margin-top: 8px;
+      color: var(--muted);
+    }
+
+    .toggle input {
+      transform: scale(1.1);
+    }
+  </style></head>
+<body><div class="container">
+  <h1>Margin</h1>
+  <div class="subtitle">Discretionary spending, without guilt</div>  <div class="card">
+    <strong>Set Weekly Budget</strong>
+    <input type="number" id="budgetInput" placeholder="$" />
+    <button onclick="setBudget()">Apply Budget</button>
+  </div>  <div class="card">
+    <strong>Add Expense</strong>
+    <input type="number" id="expenseInput" placeholder="$" />
+    <button onclick="addExpense()">Add Expense</button><div class="toggle">
+  <span>Warn at 80%</span>
+  <input type="checkbox" id="warn80" />
+</div>
+<div class="toggle">
+  <span>Warn when negative</span>
+  <input type="checkbox" id="warnNegative" />
+</div>
+
+  </div>  <div class="card">
+    <div class="row"><span>Budget</span><span id="budgetDisplay">$0</span></div>
+    <div class="row"><span>Spent</span><span id="spentDisplay">$0</span></div>
+    <div class="row"><span>Remaining</span><span id="remainingDisplay">$0</span></div>
+    <div class="progress"><div class="bar" id="progressBar"></div></div>
+    <div class="insight" id="insight"></div>
+    <button class="secondary" onclick="closeWeek()">End Week</button>
+  </div>  <div class="card">
+    <strong>History</strong>
+    <table>
+      <thead>
+        <tr><th style="text-align:left">Week</th><th>Budget</th><th>Actual</th><th>Variance</th></tr>
+      </thead>
+      <tbody id="history"></tbody>
+    </table>
+  </div>
+</div><script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js');
+  }
+
+  const MS_WEEK = 7 * 24 * 60 * 60 * 1000;
+
+  let data = JSON.parse(localStorage.getItem('marginSpend')) || {
+    week: 1,
+    budget: 0,
+    spent: 0,
+    carry: 0,
+    weekStart: Date.now(),
+    history: [],
+    warn80: false,
+    warnNegative: false,
+    warned80: false,
+    warnedNegative: false
+  };
+
+  warn80.checked = data.warn80;
+  warnNegative.checked = data.warnNegative;
+
+  warn80.onchange = () => { data.warn80 = warn80.checked; save(); };
+  warnNegative.onchange = () => { data.warnNegative = warnNegative.checked; save(); };
+
+  function save() {
+    localStorage.setItem('marginSpend', JSON.stringify(data));
+  }
+
+  function maybeAutoClose() {
+    if (Date.now() - data.weekStart >= MS_WEEK) closeWeek();
+  }
+
+  function setBudget() {
+    const val = Number(budgetInput.value);
+    if (!val) return;
+    data.budget = val + data.carry;
+    data.spent = 0;
+    data.carry = 0;
+    data.weekStart = Date.now();
+    data.warned80 = false;
+    data.warnedNegative = false;
+    save();
+    render();
+  }
+
+  function addExpense() {
+    const val = Number(expenseInput.value);
+    if (!val) return;
+    data.spent += val;
+    expenseInput.value = '';
+
+    if (navigator.vibrate) navigator.vibrate(15);
+
+    const pct = data.budget ? data.spent / data.budget : 0;
+    if (data.warn80 && pct >= .8 && !data.warned80) {
+      alert('80% of weekly margin used');
+      data.warned80 = true;
+    }
+    if (data.warnNegative && data.budget - data.spent < 0 && !data.warnedNegative) {
+      alert('Weekly margin exceeded');
+      data.warnedNegative = true;
+    }
+
+    save();
+    render();
+  }
+
+  function closeWeek() {
+    const variance = data.budget - data.spent;
+    data.history.unshift({ week: data.week, budget: data.budget, actual: data.spent, variance });
+    data.carry = variance;
+    data.week++;
+    data.spent = 0;
+    data.budget = 0;
+    data.weekStart = Date.now();
+    data.warned80 = false;
+    data.warnedNegative = false;
+    save();
+  }
+
+  function render() {
+    maybeAutoClose();
+
+    budgetDisplay.textContent = `$${data.budget.toFixed(2)}`;
+    spentDisplay.textContent = `$${data.spent.toFixed(2)}`;
+
+    const remaining = data.budget - data.spent;
+    remainingDisplay.textContent = `$${remaining.toFixed(2)}`;
+    remainingDisplay.className = remaining >= 0 ? 'positive' : 'negative';
+
+    const pct = data.budget ? Math.min((data.spent / data.budget) * 100, 140) : 0;
+    progressBar.style.width = pct + '%';
+    progressBar.className = 'bar' + (remaining < 0 ? ' over' : '');
+
+    const days = Math.max(1, Math.ceil((Date.now() - data.weekStart) / (24*60*60*1000)));
+    const avg = data.spent / days;
+
+    insight.textContent = `Avg $${avg.toFixed(0)} / day • ${remaining >= 0 ? 'Margin intact' : 'Recovery week'}`;
+
+    history.innerHTML = data.history.map(h => `
+      <tr>
+        <td style="text-align:left">${h.week}</td>
+        <td>$${h.budget.toFixed(0)}</td>
+        <td>$${h.actual.toFixed(0)}</td>
+        <td class="${h.variance >= 0 ? 'positive' : 'negative'}">$${h.variance.toFixed(0)}</td>
+      </tr>
+    `).join('');
+  }
+
+  render();
+</script></body>
+</html>
