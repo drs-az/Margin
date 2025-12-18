@@ -263,6 +263,8 @@
     .dot.ok { background: var(--positive); }
     .dot.warn { background: #fbbf24; }
 
+    .hidden { display: none; }
+
     .history-empty {
       text-align: center;
       padding: 12px;
@@ -280,7 +282,7 @@
     </div>
   </header>
 
-  <div class="card">
+  <div class="card" id="budgetCard">
     <strong>Set Weekly Budget</strong>
     <input type="number" id="budgetInput" placeholder="$" inputmode="decimal" />
     <button onclick="setBudget()">Apply Budget</button>
@@ -458,6 +460,7 @@
     data.warned80 = false;
     data.warnedNegative = false;
     save();
+    render();
   }
 
   function render() {
@@ -481,6 +484,8 @@
     const status = remaining >= 0 ? 'Margin intact' : 'Recovery week';
     const paceStatus = avg <= pace ? 'On pace' : 'Spending fast';
     insight.textContent = `Avg $${avg.toFixed(0)} / day • ${status} • ${paceStatus}`;
+
+    budgetCard.classList.toggle('hidden', data.budget > 0);
 
     history.innerHTML = data.history.map(h => `
       <tr>
