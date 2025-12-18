@@ -489,6 +489,8 @@
   const expenseList = document.getElementById('expenseList');
   const expensesClose = document.getElementById('expensesClose');
   const expenseDetailsBtn = document.getElementById('expenseDetailsBtn');
+  const historyBody = document.getElementById('history');
+  const historyEmpty = document.getElementById('historyEmpty');
 
   function showModal(message) {
     modalMessage.textContent = message;
@@ -689,7 +691,7 @@
 
     budgetCard.classList.toggle('hidden', data.budget > 0);
 
-    history.innerHTML = data.history.map(h => `
+    historyBody.innerHTML = data.history.map(h => `
       <tr>
         <td style="text-align:left">${h.week}</td>
         <td>$${h.budget.toFixed(0)}</td>
