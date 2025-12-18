@@ -185,19 +185,6 @@
       margin: 2px 0 0;
     }
 
-    .pill {
-      background: rgba(56,189,248,.12);
-      color: var(--accent);
-      padding: 8px 12px;
-      border-radius: 999px;
-      font-size: .8rem;
-      border: 1px solid rgba(56,189,248,.25);
-      display: inline-flex;
-      gap: 8px;
-      align-items: center;
-      margin-left: auto;
-    }
-
     .grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
@@ -291,7 +278,6 @@
         <div class="subtitle">Track and protect your weekly spending buffer</div>
       </div>
     </div>
-    <div class="pill" id="weekPill">Week 1 • On track</div>
   </header>
 
   <div class="card">
@@ -495,8 +481,6 @@
     const status = remaining >= 0 ? 'Margin intact' : 'Recovery week';
     const paceStatus = avg <= pace ? 'On pace' : 'Spending fast';
     insight.textContent = `Avg $${avg.toFixed(0)} / day • ${status} • ${paceStatus}`;
-
-    weekPill.textContent = `Week ${data.week} • ${remaining >= 0 ? 'On track' : 'Over budget'}`;
 
     history.innerHTML = data.history.map(h => `
       <tr>
