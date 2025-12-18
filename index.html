@@ -2,8 +2,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Margin</title>  <!-- PWA -->  <link rel="manifest" href="manifest.json" />
-  <meta name="theme-color" content="#020617" />  <style>
+  <title>Margin</title>
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#020617" />
+  <link rel="apple-touch-icon" href="icon-m.png" />
+  <style>
     :root {
       --bg: #020617;
       --card: #0f172a;
@@ -12,6 +16,7 @@
       --negative: #ef4444;
       --muted: #94a3b8;
       --text: #e5e7eb;
+      --surface: rgba(255, 255, 255, 0.04);
     }
 
     body {
@@ -19,24 +24,18 @@
       font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
       background: radial-gradient(circle at top, #020617, #000);
       color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      background-attachment: fixed;
     }
 
     .container {
       max-width: 460px;
       margin: auto;
       padding: 16px;
-    }
-
-    h1 {
-      font-size: 1.5rem;
-      margin-bottom: 4px;
-      letter-spacing: .4px;
-    }
-
-    .subtitle {
-      font-size: .85rem;
-      color: var(--muted);
-      margin-bottom: 12px;
+      width: 100%;
+      box-sizing: border-box;
     }
 
     .card {
@@ -45,6 +44,7 @@
       padding: 16px;
       margin-bottom: 16px;
       box-shadow: 0 10px 30px rgba(0,0,0,.45);
+      border: 1px solid rgba(255,255,255,.05);
     }
 
     .row {
@@ -63,6 +63,7 @@
       color: var(--text);
       margin-top: 6px;
       font-size: 1rem;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
     }
 
     button {
@@ -75,6 +76,14 @@
       border: none;
       border-radius: 14px;
       font-size: 1rem;
+      cursor: pointer;
+      box-shadow: 0 10px 30px rgba(56,189,248,.25);
+      transition: transform .1s ease, box-shadow .2s ease;
+    }
+
+    button:active {
+      transform: translateY(1px);
+      box-shadow: 0 6px 16px rgba(56,189,248,.2);
     }
 
     .secondary {
@@ -138,33 +147,204 @@
     .toggle input {
       transform: scale(1.1);
     }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: var(--surface);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 12px 30px rgba(0,0,0,.35);
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      margin: 0;
+      letter-spacing: .4px;
+    }
+
+    .subtitle {
+      font-size: .9rem;
+      color: var(--muted);
+      margin: 2px 0 0;
+    }
+
+    .pill {
+      background: rgba(56,189,248,.12);
+      color: var(--accent);
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: .8rem;
+      border: 1px solid rgba(56,189,248,.25);
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      margin-left: auto;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .metric {
+      background: var(--surface);
+      padding: 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.04);
+    }
+
+    .metric label {
+      font-size: .8rem;
+      color: var(--muted);
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .metric .value {
+      font-size: 1.2rem;
+      font-weight: 700;
+    }
+
+    .quick-add {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .quick-add button {
+      width: auto;
+      flex: 1;
+      background: rgba(56,189,248,.16);
+      color: var(--accent);
+      border: 1px solid rgba(56,189,248,.25);
+      box-shadow: none;
+    }
+
+    .install {
+      display: none;
+      margin-top: 8px;
+    }
+    .install.visible { display: block; }
+
+    .status-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    .status-chip {
+      flex: 1;
+      min-width: 160px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 12px;
+      font-size: .85rem;
+      color: var(--muted);
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+
+    .dot.ok { background: var(--positive); }
+    .dot.warn { background: #fbbf24; }
+
+    .history-empty {
+      text-align: center;
+      padding: 12px;
+      color: var(--muted);
+    }
   </style></head>
 <body><div class="container">
-  <h1>Margin</h1>
-  <div class="subtitle">A better way to track discretionary spending</div>  <div class="card">
-    <strong>Set Weekly Budget</strong>
-    <input type="number" id="budgetInput" placeholder="$" />
-    <button onclick="setBudget()">Apply Budget</button>
-  </div>  <div class="card">
-    <strong>Add Expense</strong>
-    <input type="number" id="expenseInput" placeholder="$" />
-    <button onclick="addExpense()">Add Expense</button><div class="toggle">
-  <span>Warn at 80%</span>
-  <input type="checkbox" id="warn80" />
-</div>
-<div class="toggle">
-  <span>Warn when negative</span>
-  <input type="checkbox" id="warnNegative" />
-</div>
+  <header>
+    <div class="brand">
+      <div class="logo"><img src="icon-m.png" alt="Margin icon" style="width:100%;height:100%;border-radius:10px;" /></div>
+      <div>
+        <h1>Margin</h1>
+        <div class="subtitle">Track and protect your weekly spending buffer</div>
+      </div>
+    </div>
+    <div class="pill" id="weekPill">Week 1 • On track</div>
+  </header>
 
-  </div>  <div class="card">
-    <div class="row"><span>Budget</span><span id="budgetDisplay">$0</span></div>
-    <div class="row"><span>Spent</span><span id="spentDisplay">$0</span></div>
-    <div class="row"><span>Remaining</span><span id="remainingDisplay">$0</span></div>
+  <div class="card">
+    <strong>Set Weekly Budget</strong>
+    <input type="number" id="budgetInput" placeholder="$" inputmode="decimal" />
+    <button onclick="setBudget()">Apply Budget</button>
+    <div class="status-row">
+      <div class="status-chip"><span class="dot ok" id="pwaStatus"></span><span id="pwaStatusText">Ready for offline</span></div>
+      <div class="status-chip"><span class="dot warn" id="networkDot"></span><span id="networkText">Checking connectivity…</span></div>
+    </div>
+    <button class="secondary install" id="installBtn">Install app</button>
+  </div>
+
+  <div class="card">
+    <strong>Add Expense</strong>
+    <input type="number" id="expenseInput" placeholder="$" inputmode="decimal" />
+    <div class="quick-add">
+      <button onclick="quickAdd(10)">$10</button>
+      <button onclick="quickAdd(25)">$25</button>
+      <button onclick="quickAdd(50)">$50</button>
+    </div>
+    <button onclick="addExpense()">Add Expense</button>
+    <div class="toggle">
+      <span>Warn at 80%</span>
+      <input type="checkbox" id="warn80" />
+    </div>
+    <div class="toggle">
+      <span>Warn when negative</span>
+      <input type="checkbox" id="warnNegative" />
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="grid">
+      <div class="metric">
+        <label>Budget</label>
+        <div class="value" id="budgetDisplay">$0</div>
+      </div>
+      <div class="metric">
+        <label>Spent</label>
+        <div class="value" id="spentDisplay">$0</div>
+      </div>
+      <div class="metric">
+        <label>Remaining</label>
+        <div class="value" id="remainingDisplay">$0</div>
+      </div>
+    </div>
     <div class="progress"><div class="bar" id="progressBar"></div></div>
     <div class="insight" id="insight"></div>
     <button class="secondary" onclick="closeWeek()">End Week</button>
-  </div>  <div class="card">
+  </div>
+
+  <div class="card">
     <strong>History</strong>
     <table>
       <thead>
@@ -172,10 +352,17 @@
       </thead>
       <tbody id="history"></tbody>
     </table>
+    <div class="history-empty" id="historyEmpty" style="display:none;">No weeks closed yet. End a week to start your streak.</div>
   </div>
+
 </div><script>
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js');
+    navigator.serviceWorker.register('sw.js').then(() => {
+      pwaStatusText.textContent = 'Offline ready';
+      pwaStatus.classList.add('ok');
+    }).catch(() => {
+      pwaStatusText.textContent = 'Service worker unavailable';
+    });
   }
 
   const MS_WEEK = 7 * 24 * 60 * 60 * 1000;
@@ -199,6 +386,33 @@
   warn80.onchange = () => { data.warn80 = warn80.checked; save(); };
   warnNegative.onchange = () => { data.warnNegative = warnNegative.checked; save(); };
 
+  let installPrompt;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    installPrompt = e;
+    installBtn.classList.add('visible');
+  });
+
+  installBtn.onclick = async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    const choice = await installPrompt.userChoice;
+    if (choice.outcome === 'accepted') {
+      installBtn.textContent = 'Installed';
+      installBtn.disabled = true;
+    }
+    installPrompt = null;
+  };
+
+  window.addEventListener('online', updateNetworkStatus);
+  window.addEventListener('offline', updateNetworkStatus);
+
+  function updateNetworkStatus() {
+    const online = navigator.onLine;
+    networkDot.className = 'dot ' + (online ? 'ok' : 'warn');
+    networkText.textContent = online ? 'Connected' : 'Offline mode';
+  }
+
   function save() {
     localStorage.setItem('marginSpend', JSON.stringify(data));
   }
@@ -218,6 +432,11 @@
     data.warnedNegative = false;
     save();
     render();
+  }
+
+  function quickAdd(amount) {
+    expenseInput.value = amount;
+    addExpense();
   }
 
   function addExpense() {
@@ -272,7 +491,12 @@
     const days = Math.max(1, Math.ceil((Date.now() - data.weekStart) / (24*60*60*1000)));
     const avg = data.spent / days;
 
-    insight.textContent = `Avg $${avg.toFixed(0)} / day • ${remaining >= 0 ? 'Margin intact' : 'Recovery week'}`;
+    const pace = data.budget ? (data.budget / 7) : 0;
+    const status = remaining >= 0 ? 'Margin intact' : 'Recovery week';
+    const paceStatus = avg <= pace ? 'On pace' : 'Spending fast';
+    insight.textContent = `Avg $${avg.toFixed(0)} / day • ${status} • ${paceStatus}`;
+
+    weekPill.textContent = `Week ${data.week} • ${remaining >= 0 ? 'On track' : 'Over budget'}`;
 
     history.innerHTML = data.history.map(h => `
       <tr>
@@ -282,8 +506,11 @@
         <td class="${h.variance >= 0 ? 'positive' : 'negative'}">$${h.variance.toFixed(0)}</td>
       </tr>
     `).join('');
+
+    historyEmpty.style.display = data.history.length ? 'none' : 'block';
   }
 
   render();
+  updateNetworkStatus();
 </script></body>
 </html>
