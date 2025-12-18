@@ -270,6 +270,39 @@
       padding: 12px;
       color: var(--muted);
     }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 23, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      backdrop-filter: blur(2px);
+      z-index: 20;
+    }
+
+    .modal {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 18px;
+      max-width: 360px;
+      width: 100%;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .modal h2 {
+      margin: 0 0 10px;
+      font-size: 1.1rem;
+    }
+
+    .modal p {
+      margin: 0 0 16px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
   </style></head>
 <body><div class="container">
   <header>
@@ -343,6 +376,14 @@
     <div class="history-empty" id="historyEmpty" style="display:none;">No weeks closed yet. End a week to start your streak.</div>
   </div>
 
+  <div class="modal-overlay hidden" id="alertModal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <h2 id="modalTitle">Heads up</h2>
+      <p id="modalMessage"></p>
+      <button id="modalClose">OK</button>
+    </div>
+  </div>
+
 </div><script>
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').then(() => {
@@ -373,6 +414,24 @@
 
   warn80.onchange = () => { data.warn80 = warn80.checked; save(); };
   warnNegative.onchange = () => { data.warnNegative = warnNegative.checked; save(); };
+
+  const alertModal = document.getElementById('alertModal');
+  const modalMessage = document.getElementById('modalMessage');
+  const modalClose = document.getElementById('modalClose');
+
+  function showModal(message) {
+    modalMessage.textContent = message;
+    alertModal.classList.remove('hidden');
+    modalClose.focus();
+  }
+
+  function hideModal() {
+    alertModal.classList.add('hidden');
+  }
+
+  modalClose.onclick = hideModal;
+  alertModal.addEventListener('click', (e) => { if (e.target === alertModal) hideModal(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !alertModal.classList.contains('hidden')) hideModal(); });
 
   let installPrompt;
   window.addEventListener('beforeinstallprompt', (e) => {
@@ -437,11 +496,11 @@
 
     const pct = data.budget ? data.spent / data.budget : 0;
     if (data.warn80 && pct >= .8 && !data.warned80) {
-      alert('80% of weekly margin used');
+      showModal('80% of weekly margin used');
       data.warned80 = true;
     }
     if (data.warnNegative && data.budget - data.spent < 0 && !data.warnedNegative) {
-      alert('Weekly margin exceeded');
+      showModal('Weekly margin exceeded');
       data.warnedNegative = true;
     }
 
