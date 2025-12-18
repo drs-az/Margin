@@ -54,7 +54,8 @@
       margin: 6px 0;
     }
 
-    input[type="number"] {
+    input[type="number"],
+    input[type="text"] {
       width: 100%;
       padding: 12px;
       border-radius: 12px;
@@ -338,26 +339,15 @@
       color: var(--muted);
     }
 
-    .expense-amount { text-align: right; font-weight: 700; }
-    .expense-note { color: var(--muted); font-size: .85rem; margin-top: 2px; word-break: break-word; }
-    .expense-note.empty { font-style: italic; color: rgba(148,163,184,.8); }
-
     .expense-actions {
       display: flex;
-      gap: 6px;
+      gap: 8px;
       justify-content: flex-end;
-      margin-top: 6px;
     }
 
-    .text-button {
-      background: none;
-      border: 1px solid rgba(56,189,248,.2);
-      color: var(--accent);
-      padding: 6px 10px;
-      border-radius: 10px;
-      cursor: pointer;
-      font-weight: 600;
-      font-size: .85rem;
+    .link-button.inline {
+      padding: 0;
+      margin: 0;
     }
 
     .modal-overlay {
@@ -418,7 +408,7 @@
   <div class="card">
     <strong>Add Expense</strong>
     <input type="number" id="expenseInput" placeholder="$" inputmode="decimal" />
-    <input type="text" id="expenseNote" placeholder="Add a note (optional)" />
+    <input type="text" id="expenseNote" placeholder="Note (optional)" />
     <div class="quick-add">
       <button onclick="quickAdd(10)">$10</button>
       <button onclick="quickAdd(25)">$25</button>
@@ -475,6 +465,31 @@
     </div>
   </div>
 
+  <div class="modal-overlay hidden" id="confirmModal" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+      <h2 id="confirmTitle">Confirm delete</h2>
+      <p id="confirmMessage">Are you sure you want to delete this expense?</p>
+      <div class="expense-actions">
+        <button class="secondary" id="confirmCancel">Cancel</button>
+        <button id="confirmDelete">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay hidden" id="editModal" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="editTitle">
+      <h2 id="editTitle">Edit expense</h2>
+      <label for="editAmount" style="display:block;font-size:.9rem;color:var(--muted);margin-bottom:6px;">Amount</label>
+      <input type="number" id="editAmount" inputmode="decimal" />
+      <label for="editNote" style="display:block;font-size:.9rem;color:var(--muted);margin-top:10px;margin-bottom:6px;">Note (optional)</label>
+      <input type="text" id="editNote" />
+      <div class="expense-actions" style="margin-top:12px;">
+        <button class="secondary" id="editCancel">Cancel</button>
+        <button id="editSave">Save</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-overlay hidden" id="expensesModal" aria-hidden="true">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="expensesTitle">
       <h2 id="expensesTitle">This week's expenses</h2>
@@ -514,6 +529,9 @@
 
   warn80.checked = data.warn80;
   warnNegative.checked = data.warnNegative;
+  if (data.expenses) {
+    data.expenses = data.expenses.map(e => ({ note: '', ...e }));
+  }
 
   warn80.onchange = () => { data.warn80 = warn80.checked; save(); };
   warnNegative.onchange = () => { data.warnNegative = warnNegative.checked; save(); };
@@ -525,6 +543,19 @@
   const expenseList = document.getElementById('expenseList');
   const expensesClose = document.getElementById('expensesClose');
   const expenseDetailsBtn = document.getElementById('expenseDetailsBtn');
+  const historyBody = document.getElementById('history');
+  const historyEmpty = document.getElementById('historyEmpty');
+  const confirmModal = document.getElementById('confirmModal');
+  const confirmCancel = document.getElementById('confirmCancel');
+  const confirmDelete = document.getElementById('confirmDelete');
+  const editModal = document.getElementById('editModal');
+  const editAmount = document.getElementById('editAmount');
+  const editNote = document.getElementById('editNote');
+  const editCancel = document.getElementById('editCancel');
+  const editSave = document.getElementById('editSave');
+
+  let pendingDeleteIndex = null;
+  let pendingEditIndex = null;
 
   function showModal(message) {
     modalMessage.textContent = message;
@@ -578,6 +609,8 @@
     if (e.key === 'Escape') {
       if (!alertModal.classList.contains('hidden')) hideModal();
       if (!expensesModal.classList.contains('hidden')) closeExpensesModal();
+      if (!confirmModal.classList.contains('hidden')) hideConfirmModal();
+      if (!editModal.classList.contains('hidden')) hideEditModal();
     }
   });
 
@@ -640,7 +673,7 @@
     if (!val) return;
     const note = expenseNote.value.trim();
     data.spent += val;
-    data.expenses.unshift({ amount: val, timestamp: Date.now(), note });
+    data.expenses.unshift({ amount: val, timestamp: Date.now(), note: expenseNote.value.trim() });
     expenseInput.value = '';
     expenseNote.value = '';
 
@@ -711,6 +744,79 @@
     renderExpensesList();
   }
 
+  function hideConfirmModal() {
+    confirmModal.classList.add('hidden');
+    confirmModal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('modal-open');
+    pendingDeleteIndex = null;
+  }
+
+  function showConfirmModal(index) {
+    pendingDeleteIndex = index;
+    confirmModal.classList.remove('hidden');
+    confirmModal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('modal-open');
+    confirmCancel.focus({ preventScroll: true });
+  }
+
+  confirmCancel.onclick = hideConfirmModal;
+  confirmDelete.onclick = () => {
+    if (pendingDeleteIndex === null) return;
+    const expenses = currentWeekExpenses();
+    const expense = expenses[pendingDeleteIndex];
+    const globalIndex = data.expenses.findIndex(e => e.timestamp === expense.timestamp && e.amount === expense.amount && e.note === expense.note);
+    if (globalIndex !== -1) {
+      data.expenses.splice(globalIndex, 1);
+      data.spent -= expense.amount;
+      save();
+      render();
+    }
+    hideConfirmModal();
+  };
+
+  confirmModal.addEventListener('click', (e) => { if (e.target === confirmModal) hideConfirmModal(); });
+
+  function hideEditModal() {
+    editModal.classList.add('hidden');
+    editModal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('modal-open');
+    pendingEditIndex = null;
+  }
+
+  function showEditModal(index) {
+    const expenses = currentWeekExpenses();
+    const expense = expenses[index];
+    if (!expense) return;
+    pendingEditIndex = index;
+    editAmount.value = expense.amount;
+    editNote.value = expense.note || '';
+    editModal.classList.remove('hidden');
+    editModal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('modal-open');
+    editAmount.focus({ preventScroll: true });
+  }
+
+  editCancel.onclick = hideEditModal;
+  editSave.onclick = () => {
+    if (pendingEditIndex === null) return;
+    const newAmount = Number(editAmount.value);
+    if (!newAmount) return;
+    const expenses = currentWeekExpenses();
+    const expense = expenses[pendingEditIndex];
+    const globalIndex = data.expenses.findIndex(e => e.timestamp === expense.timestamp && e.amount === expense.amount && e.note === expense.note);
+    if (globalIndex !== -1) {
+      data.spent -= data.expenses[globalIndex].amount;
+      data.expenses[globalIndex].amount = newAmount;
+      data.expenses[globalIndex].note = editNote.value.trim();
+      data.spent += newAmount;
+      save();
+      render();
+    }
+    hideEditModal();
+  };
+
+  editModal.addEventListener('click', (e) => { if (e.target === editModal) hideEditModal(); });
+
   function renderExpensesList() {
     const expenses = currentWeekExpenses();
     if (!expenses.length) {
@@ -720,17 +826,14 @@
 
     const rows = expenses.map(e => {
       const date = new Date(e.timestamp).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-      const noteClass = e.note ? 'expense-note' : 'expense-note empty';
-      const noteText = e.note || 'Add note';
+      const noteLine = e.note ? `<div style="color:var(--muted);font-size:.85rem;">${e.note}</div>` : '';
       return `<tr>
-        <td>
-          <div>${date}</div>
-          <div class="${noteClass}">${noteText}</div>
-        </td>
-        <td class="expense-amount">$${e.amount.toFixed(2)}
+        <td>${date}${noteLine}</td>
+        <td style="text-align:right;">$${e.amount.toFixed(2)}</td>
+        <td style="text-align:right;">
           <div class="expense-actions">
-            <button class="text-button" type="button" onclick="editExpense(${e.index})">Edit</button>
-            <button class="text-button" type="button" onclick="deleteExpense(${e.index})">Delete</button>
+            <button class="link-button inline" data-action="edit" data-ts="${e.timestamp}">Edit</button>
+            <button class="link-button inline" data-action="delete" data-ts="${e.timestamp}">Delete</button>
           </div>
         </td>
       </tr>`;
@@ -738,11 +841,22 @@
 
     expenseList.innerHTML = `
       <table>
-        <thead><tr><th>Date & Note</th><th style="text-align:right;">Amount</th></tr></thead>
+        <thead><tr><th>Date</th><th style="text-align:right;">Amount</th><th></th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     `;
   }
+
+  expenseList.addEventListener('click', (e) => {
+    const action = e.target.getAttribute('data-action');
+    if (!action) return;
+    const ts = Number(e.target.getAttribute('data-ts'));
+    const expenses = currentWeekExpenses();
+    const index = expenses.findIndex(exp => exp.timestamp === ts);
+    if (index === -1) return;
+    if (action === 'edit') showEditModal(index);
+    if (action === 'delete') showConfirmModal(index);
+  });
 
   function render() {
     maybeAutoClose();
