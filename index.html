@@ -66,6 +66,18 @@
       box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
     }
 
+    input[type="text"] {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: none;
+      background: #020617;
+      color: var(--text);
+      margin-top: 6px;
+      font-size: .95rem;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+    }
+
     button {
       width: 100%;
       padding: 12px;
@@ -326,6 +338,28 @@
       color: var(--muted);
     }
 
+    .expense-amount { text-align: right; font-weight: 700; }
+    .expense-note { color: var(--muted); font-size: .85rem; margin-top: 2px; word-break: break-word; }
+    .expense-note.empty { font-style: italic; color: rgba(148,163,184,.8); }
+
+    .expense-actions {
+      display: flex;
+      gap: 6px;
+      justify-content: flex-end;
+      margin-top: 6px;
+    }
+
+    .text-button {
+      background: none;
+      border: 1px solid rgba(56,189,248,.2);
+      color: var(--accent);
+      padding: 6px 10px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: .85rem;
+    }
+
     .modal-overlay {
       position: fixed;
       inset: 0;
@@ -384,6 +418,7 @@
   <div class="card">
     <strong>Add Expense</strong>
     <input type="number" id="expenseInput" placeholder="$" inputmode="decimal" />
+    <input type="text" id="expenseNote" placeholder="Add a note (optional)" />
     <div class="quick-add">
       <button onclick="quickAdd(10)">$10</button>
       <button onclick="quickAdd(25)">$25</button>
@@ -475,6 +510,7 @@
   };
 
   if (!data.expenses) data.expenses = [];
+  data.expenses = data.expenses.map(e => ({ note: '', ...e }));
 
   warn80.checked = data.warn80;
   warnNegative.checked = data.warnNegative;
@@ -489,8 +525,6 @@
   const expenseList = document.getElementById('expenseList');
   const expensesClose = document.getElementById('expensesClose');
   const expenseDetailsBtn = document.getElementById('expenseDetailsBtn');
-  const historyBody = document.getElementById('history');
-  const historyEmpty = document.getElementById('historyEmpty');
 
   function showModal(message) {
     modalMessage.textContent = message;
@@ -604,9 +638,11 @@
   function addExpense() {
     const val = Number(expenseInput.value);
     if (!val) return;
+    const note = expenseNote.value.trim();
     data.spent += val;
-    data.expenses.unshift({ amount: val, timestamp: Date.now() });
+    data.expenses.unshift({ amount: val, timestamp: Date.now(), note });
     expenseInput.value = '';
+    expenseNote.value = '';
 
     if (navigator.vibrate) navigator.vibrate(15);
 
@@ -641,7 +677,38 @@
 
   function currentWeekExpenses() {
     const end = data.weekStart + MS_WEEK;
-    return data.expenses.filter(e => e.timestamp >= data.weekStart && e.timestamp < end);
+    return data.expenses
+      .map((e, index) => ({ ...e, index }))
+      .filter(e => e.timestamp >= data.weekStart && e.timestamp < end);
+  }
+
+  function editExpense(index) {
+    const entry = data.expenses[index];
+    if (!entry) return;
+
+    const newAmountStr = prompt('Update amount', entry.amount);
+    if (newAmountStr === null) return;
+    const newAmount = Number(newAmountStr);
+    if (!newAmount) return;
+
+    const newNote = prompt('Update note (optional)', entry.note || '');
+    if (newNote === null) return;
+
+    data.spent += newAmount - entry.amount;
+    data.expenses[index] = { ...entry, amount: newAmount, note: newNote.trim() };
+    save();
+    render();
+    renderExpensesList();
+  }
+
+  function deleteExpense(index) {
+    const entry = data.expenses[index];
+    if (!entry) return;
+    data.spent -= entry.amount;
+    data.expenses.splice(index, 1);
+    save();
+    render();
+    renderExpensesList();
   }
 
   function renderExpensesList() {
@@ -653,12 +720,25 @@
 
     const rows = expenses.map(e => {
       const date = new Date(e.timestamp).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-      return `<tr><td>${date}</td><td style="text-align:right;">$${e.amount.toFixed(2)}</td></tr>`;
+      const noteClass = e.note ? 'expense-note' : 'expense-note empty';
+      const noteText = e.note || 'Add note';
+      return `<tr>
+        <td>
+          <div>${date}</div>
+          <div class="${noteClass}">${noteText}</div>
+        </td>
+        <td class="expense-amount">$${e.amount.toFixed(2)}
+          <div class="expense-actions">
+            <button class="text-button" type="button" onclick="editExpense(${e.index})">Edit</button>
+            <button class="text-button" type="button" onclick="deleteExpense(${e.index})">Delete</button>
+          </div>
+        </td>
+      </tr>`;
     }).join('');
 
     expenseList.innerHTML = `
       <table>
-        <thead><tr><th>Date</th><th style="text-align:right;">Amount</th></tr></thead>
+        <thead><tr><th>Date & Note</th><th style="text-align:right;">Amount</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     `;
