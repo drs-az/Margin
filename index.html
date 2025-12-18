@@ -555,7 +555,7 @@
 
     const remaining = data.budget - data.spent;
     remainingDisplay.textContent = `$${remaining.toFixed(2)}`;
-    remainingDisplay.className = remaining >= 0 ? 'positive' : 'negative';
+    remainingDisplay.className = 'value ' + (remaining >= 0 ? 'positive' : 'negative');
 
     const pct = data.budget ? Math.min((data.spent / data.budget) * 100, 140) : 0;
     progressBar.style.width = pct + '%';
