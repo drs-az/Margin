@@ -299,6 +299,12 @@
       color: var(--muted);
     }
 
+    .helper-text {
+      color: var(--muted);
+      font-size: .9rem;
+      margin-top: 6px;
+    }
+
     .link-button {
       border: none;
       background: none;
@@ -436,6 +442,15 @@
   </div>
 
   <div class="card">
+    <strong>Backups</strong>
+    <div class="helper-text" id="backupStatus">Automatic JSON backups are saved whenever you make a change.</div>
+    <button id="downloadBackup" type="button">Download backup</button>
+    <button class="secondary" id="restoreBackup" type="button">Restore last auto-backup</button>
+    <button class="secondary" id="importBackupBtn" type="button">Import backup</button>
+    <input type="file" id="importBackupInput" accept="application/json" hidden />
+  </div>
+
+  <div class="card">
     <div class="grid">
       <div class="metric">
         <label>Budget</label>
@@ -518,55 +533,89 @@
     });
   }
 
-  const MS_WEEK = 7 * 24 * 60 * 60 * 1000;
+    const STORAGE_KEY = 'marginSpend';
+    const BACKUP_KEY = 'marginSpendBackup';
+    const MS_WEEK = 7 * 24 * 60 * 60 * 1000;
 
-  let data = JSON.parse(localStorage.getItem('marginSpend')) || {
-    week: 1,
-    budget: 0,
-    spent: 0,
-    carry: 0,
-    weekStart: Date.now(),
-    history: [],
-    expenses: [],
-    warn80: false,
-    warnNegative: false,
-    warned80: false,
-    warnedNegative: false
-  };
+    const DEFAULT_DATA = {
+      week: 1,
+      budget: 0,
+      spent: 0,
+      carry: 0,
+      weekStart: Date.now(),
+      history: [],
+      expenses: [],
+      warn80: false,
+      warnNegative: false,
+      warned80: false,
+      warnedNegative: false
+    };
 
-  if (!data.expenses) data.expenses = [];
-  data.expenses = data.expenses.map(e => ({ note: '', ...e }));
+    function loadFromStorage(key) {
+      const raw = localStorage.getItem(key);
+      if (!raw) return null;
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return null;
+      }
+    }
 
-  warn80.checked = data.warn80;
-  warnNegative.checked = data.warnNegative;
-  if (data.expenses) {
-    data.expenses = data.expenses.map(e => ({ note: '', ...e }));
-  }
+    function normalizeData(raw) {
+      const base = { ...DEFAULT_DATA, ...(raw || {}) };
+      base.expenses = Array.isArray(base.expenses) ? base.expenses.map(e => ({ note: '', ...e })) : [];
+      base.history = Array.isArray(base.history) ? base.history : [];
+      base.budget = Number(base.budget) || 0;
+      base.spent = Number(base.spent) || 0;
+      base.weekStart = base.weekStart || Date.now();
+      base.week = Number(base.week) || 1;
+      base.carry = Number(base.carry) || 0;
+      base.warn80 = Boolean(base.warn80);
+      base.warnNegative = Boolean(base.warnNegative);
+      base.warned80 = Boolean(base.warned80);
+      base.warnedNegative = Boolean(base.warnedNegative);
+      return base;
+    }
 
-  warn80.onchange = () => { data.warn80 = warn80.checked; save(); };
-  warnNegative.onchange = () => { data.warnNegative = warnNegative.checked; save(); };
+    let data = normalizeData(loadFromStorage(STORAGE_KEY));
 
-  const alertModal = document.getElementById('alertModal');
-  const modalMessage = document.getElementById('modalMessage');
-  const modalClose = document.getElementById('modalClose');
-  const expensesModal = document.getElementById('expensesModal');
-  const expenseList = document.getElementById('expenseList');
-  const expensesClose = document.getElementById('expensesClose');
-  const expenseDetailsBtn = document.getElementById('expenseDetailsBtn');
-  const historyBody = document.getElementById('history');
-  const historyEmpty = document.getElementById('historyEmpty');
-  const confirmModal = document.getElementById('confirmModal');
-  const confirmCancel = document.getElementById('confirmCancel');
-  const confirmDelete = document.getElementById('confirmDelete');
-  const editModal = document.getElementById('editModal');
-  const editAmount = document.getElementById('editAmount');
-  const editNote = document.getElementById('editNote');
-  const editCancel = document.getElementById('editCancel');
-  const editSave = document.getElementById('editSave');
-  const overlays = [alertModal, expensesModal, confirmModal, editModal];
+    warn80.onchange = () => { data.warn80 = warn80.checked; save(); };
+    warnNegative.onchange = () => { data.warnNegative = warnNegative.checked; save(); };
 
-  let pendingDeleteIndex = null;
-  let pendingEditIndex = null;
+    const alertModal = document.getElementById('alertModal');
+    const modalMessage = document.getElementById('modalMessage');
+    const modalClose = document.getElementById('modalClose');
+    const expensesModal = document.getElementById('expensesModal');
+    const expenseList = document.getElementById('expenseList');
+    const expensesClose = document.getElementById('expensesClose');
+    const expenseDetailsBtn = document.getElementById('expenseDetailsBtn');
+    const historyBody = document.getElementById('history');
+    const historyEmpty = document.getElementById('historyEmpty');
+    const confirmModal = document.getElementById('confirmModal');
+    const confirmCancel = document.getElementById('confirmCancel');
+    const confirmDelete = document.getElementById('confirmDelete');
+    const editModal = document.getElementById('editModal');
+    const editAmount = document.getElementById('editAmount');
+    const editNote = document.getElementById('editNote');
+    const editCancel = document.getElementById('editCancel');
+    const editSave = document.getElementById('editSave');
+    const backupStatus = document.getElementById('backupStatus');
+    const downloadBackup = document.getElementById('downloadBackup');
+    const restoreBackup = document.getElementById('restoreBackup');
+    const importBackupBtn = document.getElementById('importBackupBtn');
+    const importBackupInput = document.getElementById('importBackupInput');
+    const overlays = [alertModal, expensesModal, confirmModal, editModal];
+
+    let pendingDeleteIndex = null;
+    let pendingEditIndex = null;
+
+    function syncPreferences() {
+      warn80.checked = data.warn80;
+      warnNegative.checked = data.warnNegative;
+    }
+
+    syncPreferences();
+    updateBackupStatus();
 
   function showModal(message) {
     modalMessage.textContent = message;
@@ -664,15 +713,84 @@
   window.addEventListener('online', updateNetworkStatus);
   window.addEventListener('offline', updateNetworkStatus);
 
-  function updateNetworkStatus() {
-    const online = navigator.onLine;
-    networkDot.className = 'dot ' + (online ? 'ok' : 'warn');
-    networkText.textContent = online ? 'Connected' : 'Offline mode';
-  }
+    function updateNetworkStatus() {
+      const online = navigator.onLine;
+      networkDot.className = 'dot ' + (online ? 'ok' : 'warn');
+      networkText.textContent = online ? 'Connected' : 'Offline mode';
+    }
 
-  function save() {
-    localStorage.setItem('marginSpend', JSON.stringify(data));
-  }
+    function latestBackup() {
+      const stored = loadFromStorage(BACKUP_KEY);
+      if (!stored) return null;
+      const savedAt = stored.savedAt || Date.now();
+      const payload = stored.data || stored;
+      return { savedAt, data: normalizeData(payload) };
+    }
+
+    function updateBackupStatus(savedAt) {
+      const backup = savedAt ? { savedAt } : latestBackup();
+      if (backup && backup.savedAt) {
+        backupStatus.textContent = `Last backup: ${new Date(backup.savedAt).toLocaleString()}`;
+      } else {
+        backupStatus.textContent = 'No backups yet';
+      }
+    }
+
+    function saveBackup() {
+      const savedAt = Date.now();
+      localStorage.setItem(BACKUP_KEY, JSON.stringify({ savedAt, data }));
+      updateBackupStatus(savedAt);
+    }
+
+    function save() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      saveBackup();
+    }
+
+    downloadBackup.onclick = () => {
+      const backup = latestBackup() || { savedAt: Date.now(), data };
+      const blob = new Blob([JSON.stringify(backup.data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `margin-backup-${new Date(backup.savedAt).toISOString().slice(0, 10)}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+    };
+
+    restoreBackup.onclick = () => {
+      const backup = latestBackup();
+      if (!backup) {
+        showModal('No backup found yet. Make a change to create one.');
+        return;
+      }
+      data = backup.data;
+      syncPreferences();
+      save();
+      render();
+      showModal('Backup restored');
+    };
+
+    importBackupBtn.onclick = () => importBackupInput.click();
+
+    importBackupInput.onchange = async (event) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      try {
+        const content = await file.text();
+        const parsed = JSON.parse(content);
+        const payload = parsed.data || parsed;
+        data = normalizeData(payload);
+        syncPreferences();
+        save();
+        render();
+        showModal('Backup imported and applied');
+      } catch {
+        showModal('Unable to import backup. Please select a valid JSON file.');
+      } finally {
+        importBackupInput.value = '';
+      }
+    };
 
   function maybeAutoClose() {
     if (Date.now() - data.weekStart >= MS_WEEK) closeWeek();
