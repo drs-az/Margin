@@ -736,19 +736,7 @@
       }
     }
 
-    function saveBackup() {
-      const savedAt = Date.now();
-      localStorage.setItem(BACKUP_KEY, JSON.stringify({ savedAt, data }));
-      updateBackupStatus(savedAt);
-    }
-
-    function save() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-      saveBackup();
-    }
-
-    downloadBackup.onclick = () => {
-      const backup = latestBackup() || { savedAt: Date.now(), data };
+    function triggerBackupDownload(backup) {
       const blob = new Blob([JSON.stringify(backup.data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -756,6 +744,27 @@
       link.download = `margin-backup-${new Date(backup.savedAt).toISOString().slice(0, 10)}.json`;
       link.click();
       URL.revokeObjectURL(url);
+    }
+
+    function saveBackup() {
+      const savedAt = Date.now();
+      const backup = { savedAt, data };
+      localStorage.setItem(BACKUP_KEY, JSON.stringify(backup));
+      updateBackupStatus(savedAt);
+      return backup;
+    }
+
+    function save({ triggerDownload = false } = {}) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      const backup = saveBackup();
+      if (triggerDownload) {
+        triggerBackupDownload(backup);
+      }
+    }
+
+    downloadBackup.onclick = () => {
+      const backup = latestBackup() || { savedAt: Date.now(), data };
+      triggerBackupDownload(backup);
     };
 
     restoreBackup.onclick = () => {
@@ -806,7 +815,7 @@
     data.expenses = [];
     data.warned80 = false;
     data.warnedNegative = false;
-    save();
+    save({ triggerDownload: true });
     render();
   }
 
@@ -836,7 +845,7 @@
       data.warnedNegative = true;
     }
 
-    save();
+    save({ triggerDownload: true });
     render();
   }
 
